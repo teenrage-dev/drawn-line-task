@@ -1,0 +1,14 @@
+.Canvas {
+  width: 100%;
+  border: 2px solid red;
+  margin-bottom: 30px;
+}
+
+.Btn {
+  border: 1px solid red;
+  width: 200px;
+  padding: 10px;
+  font-size: 18px;
+  display: block;
+  margin: 0 auto;
+}
