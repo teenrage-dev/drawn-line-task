@@ -1,6 +1,6 @@
 import css from './Canvas.module.css';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 export const Canvas = () => {
   const canvas = useRef();
@@ -10,106 +10,27 @@ export const Canvas = () => {
   const [end, setEnd] = useState({ x: 0, y: 0 });
   const [line, setLine] = useState({});
   const [lines, setLines] = useState([]);
-
-  useEffect(() => {
-    function draw(lines) {
-      const ctx = canvas.current.getContext('2d');
-
-      lines?.forEach(line => {
-        drawLine(ctx, line);
-      });
-    }
-    draw(lines);
-  }, [lines]);
-
-  // useEffect(() => {
-  //   if (!canvas.current) return;
-
-  //   const ctx = canvas.current.getContext('2d');
-  //   // clear canvas
-  //   // ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
-
-  //   // draw the line
-  //   ctx.beginPath();
-  //   ctx.moveTo(start.x, start.y);
-  //   ctx.lineTo(end.x, end.y);
-  //   ctx.closePath();
-  //   ctx.stroke();
-  // }, [isDrawing, start, end]);
+  const [dot, setDot] = useState({});
+  const [dotes, setDotes] = useState([]);
+  const [click, setClick] = useState(1);
+  const [arrDotesAll, setArrDotesAll] = useState([]);
 
   function drawLine(ctx, line) {
     if (!canvas.current) return;
 
+    if (
+      line?.start?.x === null ||
+      line?.start?.y === null ||
+      line?.end?.x === null ||
+      line?.end?.y === null
+    )
+      return;
     // draw the line
     ctx.beginPath();
-    ctx.moveTo(line?.start.x, line?.start.y);
-    ctx.lineTo(line?.end.x, line?.end.y);
+    ctx.moveTo(line?.start?.x, line?.start?.y);
+    ctx.lineTo(line?.end?.x, line?.end?.y);
     ctx.closePath();
     ctx.stroke();
-  }
-
-  function drawPoint(context, x, y, label, color = '#000', size = 5) {
-    context.beginPath();
-    context.fillStyle = color;
-    context.arc(x, y, size, 0 * Math.PI, 2 * Math.PI);
-    context.fill();
-
-    console.log(x, y);
-
-    if (label) {
-      // let textX = x;
-      // let textY = y - size - 3;
-
-      // let text = label + '=(' + x + '; ' + y + ')';
-
-      // context.font = 'Italic 14px Arial';
-      context.fillStyle = color;
-      // context.textAlign = 'center';
-      // context.fillText(text, textX, textY);
-    }
-  }
-
-  function calculateIntersection(p1, p2, p3, p4) {
-    // down part of intersection point formula
-    const d1 = (p1.x - p2.x) * (p3.y - p4.y); // (x1 - x2) * (y3 - y4)
-    const d2 = (p1.y - p2.y) * (p3.x - p4.x); // (y1 - y2) * (x3 - x4)
-    const d = d1 - d2;
-
-    if (d === 0) {
-      throw new Error('Number of intersection points is zero or infinity.');
-    }
-
-    // down part of intersection point formula
-    const u1 = p1.x * p2.y - p1.y * p2.x; // (x1 * y2 - y1 * x2)
-    const u4 = p3.x * p4.y - p3.y * p4.x; // (x3 * y4 - y3 * x4)
-
-    const u2x = p3.x - p4.x; // (x3 - x4)
-    const u3x = p1.x - p2.x; // (x1 - x2)
-    const u2y = p3.y - p4.y; // (y3 - y4)
-    const u3y = p1.y - p2.y; // (y1 - y2)
-
-    // intersection point formula
-
-    const px = (u1 * u2x - u3x * u4) / d;
-    const py = (u1 * u2y - u3y * u4) / d;
-
-    const p = { x: px, y: py };
-
-    return p;
-  }
-
-  function mouseDown(e) {
-    setIsDrawing(true);
-    setStart({
-      x: e.nativeEvent.offsetX,
-      y: e.nativeEvent.offsetY,
-    });
-    setEnd({
-      x: e.nativeEvent.offsetX,
-      y: e.nativeEvent.offsetY,
-    });
-
-    draw(lines);
   }
 
   function draw(lines) {
@@ -118,6 +39,123 @@ export const Canvas = () => {
     lines?.forEach(line => {
       drawLine(ctx, line);
     });
+  }
+
+  function drawPoint(context, x, y, label, color = '#ff0000', size = 5) {
+    if (x === undefined || y === undefined) return;
+    context.beginPath();
+    context.fillStyle = color;
+    context.arc(x, y, size, 0 * Math.PI, 2 * Math.PI);
+    context.fill();
+
+    setDot({ x, y });
+
+    if (label) {
+      context.fillStyle = color;
+      context.strokeStyle = 'black';
+    }
+  }
+
+  function drawPoints(dotes) {
+    const ctx = canvas.current.getContext('2d');
+
+    dotes.forEach(dot => {
+      if (!dot ?? Object.keys(dot).length === 0) return;
+      drawPoint(ctx, dot.x, dot.y, 'P');
+    });
+  }
+
+  function calculateIntersection(p1, p2, p3, p4) {
+    // console.log('!!!!First line', p1, p2);
+    // console.log('####Second line', p3, p4);
+
+    const x1 = p1?.x;
+    const y1 = p1?.y;
+    const x2 = p2?.x;
+    const y2 = p2?.y;
+
+    const x3 = p3?.x;
+    const y3 = p3?.y;
+    const x4 = p4?.x;
+    const y4 = p4?.y;
+
+    const bx = x2 - x1;
+    const by = y2 - y1;
+    const dx = x4 - x3;
+    const dy = y4 - y3;
+
+    const dotPerp = bx * dy - by * dx;
+
+    if (dotPerp === 0) return null;
+
+    const cx = x3 - x1;
+    const cy = y3 - y1;
+
+    const t = (cx * dy - cy * dx) / dotPerp;
+    if (t < 0 || t > 1) return null;
+    // console.log(t);
+
+    const u = (cx * by - cy * bx) / dotPerp;
+    // console.log(u);
+    if (u < 0 || u > 1) return null;
+
+    const point = { x: x1 + t * bx, y: y1 + t * by };
+    console.log(point);
+
+    return point;
+  }
+
+  function mouseDown(e) {
+    console.dir(e.nativeEvent);
+    const ctx = canvas.current.getContext('2d');
+
+    if (e.nativeEvent.button === 0) {
+      setClick(prevState => {
+        return prevState + 1;
+      });
+
+      if (click === 1) {
+        setIsDrawing(true);
+        setStart({
+          x: e.nativeEvent.offsetX,
+          y: e.nativeEvent.offsetY,
+        });
+        setEnd({
+          x: e.nativeEvent.offsetX,
+          y: e.nativeEvent.offsetY,
+        });
+
+        // console.log(dotes);
+
+        draw(lines);
+        drawPoints(dotes);
+      }
+      if (click === 2) {
+        console.log('#####Second', arrDotesAll);
+        setIsDrawing(false);
+        setLines(prev => [...prev, line]);
+        setDotes(prev => [...prev, ...arrDotesAll]);
+
+        setClick(1);
+      }
+    } else if (e.nativeEvent.button === 2) {
+      setStart({ x: null, y: null });
+
+      setEnd({ x: null, y: null });
+
+      setLine({
+        start,
+        end,
+      });
+
+      setDot({});
+      draw(lines);
+
+      drawLine(ctx, line);
+      drawPoints(dotes);
+
+      return;
+    }
   }
 
   function mouseMove(e) {
@@ -135,30 +173,33 @@ export const Canvas = () => {
       end,
     });
 
+    draw(lines);
+    drawPoints(dotes);
+    drawLine(ctx, line);
+
+    const arrDotes = [];
+
     lines.forEach(prevLine => {
-      console.log(prevLine);
+      if (line?.start?.x === null || line?.end?.x === null) return;
+
       const point = calculateIntersection(
-        prevLine.start,
-        prevLine.end,
+        prevLine?.start,
+        prevLine?.end,
         line.start,
         line.end
       );
 
-      console.log(point);
-      drawPoint(ctx, point.x, point.y, 'P', 'red', 5);
+      if (point === null) return;
+      arrDotes.push(point);
+
+      drawPoint(ctx, point?.x, point?.y, 'P', 'red', 5);
     });
-    drawLine(ctx, line);
+    setArrDotesAll([...arrDotes]);
+    console.log(arrDotesAll);
   }
 
-  function mouseUp(e) {
-    setIsDrawing(false);
-
-    setLines(prev => [...prev, line]);
-
-    // console.log('########MOUSEUP######');
-    // console.log(lines);
-    // draw(lines);
-    // console.log(line);
+  function disableMouseRightClick(e) {
+    e.preventDefault();
   }
 
   const onCollapse = e => {
@@ -166,6 +207,9 @@ export const Canvas = () => {
     // ctx.translate(0, 0);
     ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
     setLines([]);
+    setLine({});
+    setDotes([]);
+    setDot({});
 
     console.dir(canvas.current);
   };
@@ -177,14 +221,18 @@ export const Canvas = () => {
         ref={canvas}
         onMouseDown={mouseDown}
         onMouseMove={mouseMove}
-        onMouseUp={mouseUp}
+        onContextMenu={disableMouseRightClick}
         width="1200"
         height="800"
         className={css.Canvas}
       ></canvas>
       <button onClick={onCollapse} className={css.Btn}>
-        Collapse Lines
+        Collapse lines
       </button>
     </div>
   );
 };
+
+// TODO ЯКщо ця точка знаходиться в межапх х і y попередньої лінії то це і є перетин попточної лінії і попередньої
+
+// TODO ЦЯ точка є вже на лінії потрібно щоб при змінні руху лінії ця точка перезаписувалась в пвений обєкт, але при перетині іншої лінії скидалось значення
