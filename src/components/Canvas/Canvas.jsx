@@ -10,12 +10,12 @@ export const Canvas = () => {
   const [end, setEnd] = useState({ x: 0, y: 0 });
   const [line, setLine] = useState({});
   const [lines, setLines] = useState([]);
-  const [dot, setDot] = useState({});
   const [dotes, setDotes] = useState([]);
   const [click, setClick] = useState(1);
   const [arrDotesAll, setArrDotesAll] = useState([]);
+  const [disableBtn, setDisableBtn] = useState(false);
 
-  function drawLine(ctx, line) {
+  function drawLine(ctx, line, color = '#000000') {
     if (!canvas.current) return;
 
     if (
@@ -29,6 +29,7 @@ export const Canvas = () => {
     ctx.beginPath();
     ctx.moveTo(line?.start?.x, line?.start?.y);
     ctx.lineTo(line?.end?.x, line?.end?.y);
+    ctx.strokeStyle = color;
     ctx.closePath();
     ctx.stroke();
   }
@@ -45,10 +46,10 @@ export const Canvas = () => {
     if (x === undefined || y === undefined) return;
     context.beginPath();
     context.fillStyle = color;
+    context.strokeStyle = 'black';
     context.arc(x, y, size, 0 * Math.PI, 2 * Math.PI);
     context.fill();
-
-    setDot({ x, y });
+    context.stroke();
 
     if (label) {
       context.fillStyle = color;
@@ -66,9 +67,6 @@ export const Canvas = () => {
   }
 
   function calculateIntersection(p1, p2, p3, p4) {
-    // console.log('!!!!First line', p1, p2);
-    // console.log('####Second line', p3, p4);
-
     const x1 = p1?.x;
     const y1 = p1?.y;
     const x2 = p2?.x;
@@ -93,22 +91,18 @@ export const Canvas = () => {
 
     const t = (cx * dy - cy * dx) / dotPerp;
     if (t < 0 || t > 1) return null;
-    // console.log(t);
 
     const u = (cx * by - cy * bx) / dotPerp;
-    // console.log(u);
     if (u < 0 || u > 1) return null;
 
     const point = { x: x1 + t * bx, y: y1 + t * by };
-    console.log(point);
 
     return point;
   }
 
   function mouseDown(e) {
-    console.dir(e.nativeEvent);
     const ctx = canvas.current.getContext('2d');
-
+    setDisableBtn(false);
     if (e.nativeEvent.button === 0) {
       setClick(prevState => {
         return prevState + 1;
@@ -125,13 +119,10 @@ export const Canvas = () => {
           y: e.nativeEvent.offsetY,
         });
 
-        // console.log(dotes);
-
         draw(lines);
         drawPoints(dotes);
       }
       if (click === 2) {
-        console.log('#####Second', arrDotesAll);
         setIsDrawing(false);
         setLines(prev => [...prev, line]);
         setDotes(prev => [...prev, ...arrDotesAll]);
@@ -148,7 +139,6 @@ export const Canvas = () => {
         end,
       });
 
-      setDot({});
       draw(lines);
 
       drawLine(ctx, line);
@@ -160,12 +150,14 @@ export const Canvas = () => {
 
   function mouseMove(e) {
     if (!isDrawing) return;
+
+    const ctx = canvas.current.getContext('2d');
+
     setEnd({
       x: e.nativeEvent.offsetX,
       y: e.nativeEvent.offsetY,
     });
 
-    const ctx = canvas.current.getContext('2d');
     ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
 
     setLine({
@@ -195,7 +187,6 @@ export const Canvas = () => {
       drawPoint(ctx, point?.x, point?.y, 'P', 'red', 5);
     });
     setArrDotesAll([...arrDotes]);
-    console.log(arrDotesAll);
   }
 
   function disableMouseRightClick(e) {
@@ -204,14 +195,77 @@ export const Canvas = () => {
 
   const onCollapse = e => {
     const ctx = canvas.current.getContext('2d');
-    // ctx.translate(0, 0);
-    ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
+    console.dir(e.currentTarget);
+    if (e.currentTarget === e.target) {
+      setDisableBtn(true);
+    }
+
+    let arrLines = [];
+    let timer = 3000;
+    function loops(lines) {
+      setTimeout(() => {
+        timer -= 60;
+
+        if (timer === 0) {
+          ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
+          return;
+        }
+
+        lines.forEach(cLine => {
+          const { start, end } = cLine;
+
+          const arrDotes = [];
+          lines.forEach(prevLine => {
+            if (cLine === prevLine) return;
+            const cPoint = calculateIntersection(
+              prevLine?.start,
+              prevLine?.end,
+              cLine.start,
+              cLine.end
+            );
+
+            if (cPoint === null) return;
+            arrDotes.push(cPoint);
+          });
+
+          ctx.clearRect(0, 0, canvas.current.width, canvas.current.height);
+          drawPoints(arrDotes);
+
+          const centerLine = {
+            x: (start.x + end.x) / 2,
+            y: (start.y + end.y) / 2,
+          };
+
+          function percent(x1, y1, x2, y2) {
+            const currentLine = {
+              start: {
+                x: x1 + (centerLine.x - x1) * 0.1,
+                y: y1 + (centerLine.y - y1) * 0.1,
+              },
+              end: {
+                x: x2 + (centerLine.x - x2) * 0.1,
+                y: y2 + (centerLine.y - y2) * 0.1,
+              },
+            };
+            return currentLine;
+          }
+
+          const currentPercent = percent(start.x, start.y, end.x, end.y);
+          cLine = currentPercent;
+          arrLines.push(currentPercent);
+        });
+
+        draw(arrLines);
+
+        loops(arrLines); // рекурсiя
+        arrLines = [];
+      }, 100);
+    }
+    loops(lines);
+
     setLines([]);
     setLine({});
     setDotes([]);
-    setDot({});
-
-    console.dir(canvas.current);
   };
 
   return (
@@ -226,13 +280,9 @@ export const Canvas = () => {
         height="800"
         className={css.Canvas}
       ></canvas>
-      <button onClick={onCollapse} className={css.Btn}>
+      <button onClick={onCollapse} className={css.Btn} disabled={disableBtn}>
         Collapse lines
       </button>
     </div>
   );
 };
-
-// TODO ЯКщо ця точка знаходиться в межапх х і y попередньої лінії то це і є перетин попточної лінії і попередньої
-
-// TODO ЦЯ точка є вже на лінії потрібно щоб при змінні руху лінії ця точка перезаписувалась в пвений обєкт, але при перетині іншої лінії скидалось значення
