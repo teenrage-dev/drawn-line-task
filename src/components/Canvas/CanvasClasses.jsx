@@ -3,7 +3,7 @@ import React, { Component, createRef } from 'react';
 
 // import { useRef, useState } from 'react';
 
-export class CanvasClasse extends Component {
+export class CanvasClasses extends Component {
   canvas = createRef();
 
   state = {
